@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balatro Versus - Web Version</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (UMD Production) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Fuente Pixel -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --font-pixel: 'Press Start 2P', cursive;
+        }
+
+        body, button, input, div, span, h1, h2, h3, p {
+            font-family: var(--font-pixel) !important;
+        }
+        
+        * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        *::-webkit-scrollbar {
+            display: none;
+            width: 0px;
+            height: 0px;
+        }
+
+        .retro-panel {
+            background-color: #0f172a;
+            border: 2px solid #334155;
+            box-shadow: 4px 4px 0px #000000;
+        }
+
+        .btn-3d {
+            position: relative;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            border-width: 2px;
+            border-style: solid;
+            border-bottom-width: 6px; 
+            border-right-width: 2px;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            border-bottom-width: 2px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .btn-play { background: #2563eb; border-color: #60a5fa; border-bottom-color: #1e3a8a; border-right-color: #1e3a8a; color: white; }
+        .btn-discard { background: #dc2626; border-color: #f87171; border-bottom-color: #7f1d1d; border-right-color: #7f1d1d; color: white; }
+        .btn-shop { background: #ea580c; border-color: #fb923c; border-bottom-color: #9a3412; border-right-color: #9a3412; color: white; }
+        .btn-sell { background: #ef4444; border-color: #fca5a5; border-bottom-color: #991b1b; border-right-color: #991b1b; color: white; }
+        .btn-buy { background: #16a34a; border-color: #4ade80; border-bottom-color: #14532d; border-right-color: #14532d; color: white; }
+        .btn-reroll { background: #3b82f6; border-color: #60a5fa; border-bottom-color: #1d4ed8; border-right-color: #1d4ed8; color: white; }
+        .btn-gold { background: #eab308; border-color: #fde047; border-bottom-color: #a16207; border-right-color: #a16207; color: black; }
+        .btn-disabled { background: #334155; border-color: #475569; border-bottom-color: #1e293b; border-right-color: #1e293b; color: #64748b; text-shadow: none; cursor: not-allowed; transform: none !important; border-bottom-width: 6px !important; }
+        
+        /* Animación Fade In */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .card-sprite {
+            /* NUEVA URL WEBP */
+            background-image: url('https://raw.githubusercontent.com/PoisonedIsa/Balatro-real/fa755613feba7918f777dfab809ac865faf4ea00/8BitDeck.webp');
+            background-repeat: no-repeat;
+            image-rendering: pixelated;
+            /* Tamaño de la imagen completa: 923x384 (13 cols x 4 filas = 71x96 por carta) */
+            /* Si la imagen real tiene otro tamaño, ajusta background-size */
+            background-size: 923px 384px; 
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden select-none">
+    <div id="root" class="h-full w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // --- SISTEMA DE ICONOS INLINE (SVG) PARA EVITAR ERRORES ---
+        const SvgIcon = ({ d, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+                {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
+                {props.children}
+            </svg>
+        );
+
+        // Iconos Genéricos
+        const Heart = (props) => <SvgIcon d="M19 14c1.49-1.28 3.6-2.54 3.6-5.36C22.6 5.82 19.92 3 16.5 3 13.5 3 12 6 12 6s-1.5-3-4.5-3C4.08 3 1.4 5.82 1.4 8.64c0 2.82 2.1 4.08 3.6 5.36L12 21l7-7z" fill="currentColor" stroke="none" {...props} />;
+        const Diamond = (props) => <SvgIcon d="M2.7 10.3a2.41 2.41 0 0 0 0 3.4l8.3 8.3a2.41 2.41 0 0 0 3.4 0l8.3-8.3a2.41 2.41 0 0 0 0-3.4L14.4 2a2.41 2.41 0 0 0-3.4 0L2.7 10.3z" fill="currentColor" stroke="none" {...props} />;
+        const Club = (props) => <SvgIcon d="M12 3a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m-6 3a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m6 6v5" fill="currentColor" stroke="none" {...props} />;
+        const Spade = (props) => <SvgIcon d="M5 9c0-2.3 2.1-4 4.5-4C12 5 12 8 12 8s0-3 2.5-3C16.9 5 19 6.7 19 9c0 3.5-3 5.5-7 9-4-3.5-7-5.5-7-9z" fill="currentColor" stroke="none" {...props}><path d="M12 18v4" /></SvgIcon>;
+        
+        const Trash2 = (props) => <SvgIcon d={["M3 6h18", "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", "M10 11v6", "M14 11v6"]} {...props} />;
+        const Play = (props) => <SvgIcon d="M5 3l14 9-14 9V3z" {...props} />;
+        const RefreshCw = (props) => <SvgIcon d={["M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5", "M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16", "M16 16h5v5"]} {...props} />;
+        const ArrowRight = (props) => <SvgIcon d={["M5 12h14", "M12 5l7 7-7 7"]} {...props} />;
+        const ArrowUpCircle = (props) => <SvgIcon d={["M12 16v-8", "M8 12l4-4 4 4"]} {...props}><circle cx="12" cy="12" r="10" /></SvgIcon>;
+        const Hand = (props) => <SvgIcon d={["M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0", "M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2", "M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8", "M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"]} {...props} />;
+        const Sparkles = (props) => <SvgIcon d={["m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"]} {...props} />;
+        const Scroll = (props) => <SvgIcon d={["M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2", "M12 2v20"]} {...props} />;
+        const Coins = (props) => <SvgIcon d="M10.1 2.5a5 5 0 0 1 3.8 0" {...props}><circle cx="8" cy="8" r="6" /><path d="M18 8a6 6 0 0 0-9.3-5" /><path d="M11 11a6 6 0 0 0 9.3 5" /><circle cx="16" cy="16" r="6" /></SvgIcon>;
+        const Layers = (props) => <SvgIcon d={["M2 17L12 22L22 17", "M2 12L12 17L22 12", "M12 2L2 7L12 12L22 7L12 2Z"]} {...props} />;
+        const LayoutGrid = (props) => <SvgIcon d={["M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z"]} {...props} />;
+        const Backpack = (props) => <SvgIcon d={["M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z", "M2 10h20"]} {...props} />;
+        const Edit3 = (props) => <SvgIcon d={["M12 20h9", "M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"]} {...props} />;
+        const Minus = (props) => <SvgIcon d="M5 12h14" {...props} />;
+        const Plus = (props) => <SvgIcon d={["M12 5v14", "M5 12h14"]} {...props} />;
+        const Crown = (props) => <SvgIcon d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5Z" {...props} />;
+        const HelpCircle = (props) => <SvgIcon d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" {...props}><circle cx="12" cy="12" r="10" /><path d="M12 17h.01" /></SvgIcon>;
+        const DollarSign = (props) => <SvgIcon d={["M12 1v22", "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"]} {...props} />;
+
+        // --- CONSTANTES ---
+        const SPRITE_CARD_WIDTH = 71; 
+        const SPRITE_CARD_HEIGHT = 96;
+        const SUIT_ORDER_IN_SPRITE = ['hearts', 'clubs', 'diamonds', 'spades']; 
+
+        // --- URL SPRITES ---
+        const DECK_SPRITE_URL = "https://raw.githubusercontent.com/PoisonedIsa/Balatro-real/fa755613feba7918f777dfab809ac865faf4ea00/8BitDeck.webp";
+
+        // --- COMPONENTES PIXEL ART ---
+        const PixelTrophy = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" className={className} style={{ shapeRendering: "crispEdges" }}>
+                <path d="M4 2H20V5H19V8H18V10H16V12H14V14H10V12H8V10H6V8H5V5H4V2Z" />
+                <path d="M10 14H14V17H10V14Z" />
+                <path d="M8 17H16V21H8V17Z" />
+                <path d="M6 4H8V6H6V4Z" fill="rgba(255,255,255,0.3)" /> 
+            </svg>
+        );
+
+        const PixelPlanet = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={{ shapeRendering: "crispEdges" }}>
+                <rect x="7" y="7" width="10" height="10" fill="#0ea5e9" />
+                <rect x="9" y="5" width="6" height="2" fill="#0ea5e9" />
+                <rect x="9" y="17" width="6" height="2" fill="#0ea5e9" />
+                <rect x="5" y="9" width="2" height="6" fill="#0ea5e9" />
+                <rect x="17" y="9" width="2" height="6" fill="#0ea5e9" />
+                <rect x="13" y="7" width="2" height="2" fill="#bae6fd" />
+                <rect x="2" y="11" width="4" height="2" fill="#bae6fd" />
+                <rect x="18" y="11" width="4" height="2" fill="#bae6fd" />
+                <rect x="6" y="13" width="12" height="2" fill="rgba(0,0,0,0.2)" />
+            </svg>
+        );
+
+        const PixelTarot = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={{ shapeRendering: "crispEdges" }}>
+                <rect x="5" y="2" width="14" height="20" fill="#7e22ce" />
+                <rect x="4" y="3" width="16" height="18" stroke="#a855f7" strokeWidth="2" fill="none"/>
+                <path d="M12 7L15 12L12 17L9 12L12 7Z" fill="#fbbf24" />
+                <rect x="11" y="11" width="2" height="2" fill="#fff" />
+                <rect x="6" y="4" width="2" height="2" fill="#a855f7" />
+                <rect x="16" y="18" width="2" height="2" fill="#a855f7" />
+            </svg>
+        );
+
+        // --- DATOS DEL JUEGO ---
+        const SUITS = [
+            { id: 'hearts', icon: Heart, color: 'text-red-600', fill: 'fill-red-600', border: 'border-red-200', bg: 'bg-red-50' },
+            { id: 'diamonds', icon: Diamond, color: 'text-orange-600', fill: 'fill-orange-600', border: 'border-orange-200', bg: 'bg-orange-50' },
+            { id: 'clubs', icon: Club, color: 'text-emerald-700', fill: 'fill-emerald-700', border: 'border-emerald-200', bg: 'bg-emerald-50' },
+            { id: 'spades', icon: Spade, color: 'text-slate-900', fill: 'fill-slate-900', border: 'border-slate-300', bg: 'bg-slate-100' }
+        ];
+        const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+        const ORDERED_HAND_TYPES = [
+            { id: 'FLUSH_FIVE', name: 'Color de 5', chips: 160, mult: 16, l_chips: 50, l_mult: 3, example: [{r:'A', s:'hearts'}, {r:'A', s:'hearts'}, {r:'A', s:'hearts'}, {r:'A', s:'hearts'}, {r:'A', s:'hearts'}] },
+            { id: 'FLUSH_HOUSE', name: 'Full Color', chips: 140, mult: 14, l_chips: 40, l_mult: 4, example: [{r:'Q', s:'spades'}, {r:'Q', s:'spades'}, {r:'Q', s:'spades'}, {r:'9', s:'spades'}, {r:'9', s:'spades'}] },
+            { id: 'FIVE_OF_A_KIND', name: '5 Iguales', chips: 120, mult: 12, l_chips: 35, l_mult: 3, example: [{r:'7', s:'clubs'}, {r:'7', s:'diamonds'}, {r:'7', s:'spades'}, {r:'7', s:'hearts'}, {r:'7', s:'clubs'}] },
+            { id: 'ROYAL_FLUSH', name: 'Real', chips: 100, mult: 8, l_chips: 40, l_mult: 4, example: [{r:'10', s:'hearts'}, {r:'J', s:'hearts'}, {r:'Q', s:'hearts'}, {r:'K', s:'hearts'}, {r:'A', s:'hearts'}] },
+            { id: 'STRAIGHT_FLUSH', name: 'Esc. Color', chips: 100, mult: 8, l_chips: 40, l_mult: 4, example: [{r:'9', s:'spades'}, {r:'10', s:'spades'}, {r:'J', s:'spades'}, {r:'Q', s:'spades'}, {r:'K', s:'spades'}] },
+            { id: 'FOUR_OF_A_KIND', name: 'Póker', chips: 60, mult: 7, l_chips: 30, l_mult: 3, example: [{r:'Q', s:'spades'}, {r:'Q', s:'hearts'}, {r:'Q', s:'clubs'}, {r:'Q', s:'diamonds'}] },
+            { id: 'FULL_HOUSE', name: 'Full', chips: 40, mult: 4, l_chips: 25, l_mult: 2, example: [{r:'A', s:'spades'}, {r:'A', s:'hearts'}, {r:'A', s:'clubs'}, {r:'K', s:'diamonds'}, {r:'K', s:'spades'}] },
+            { id: 'FLUSH', name: 'Color', chips: 35, mult: 4, l_chips: 25, l_mult: 2, example: [{r:'2', s:'diamonds'}, {r:'5', s:'diamonds'}, {r:'8', s:'diamonds'}, {r:'J', s:'diamonds'}, {r:'K', s:'diamonds'}] },
+            { id: 'STRAIGHT', name: 'Escalera', chips: 30, mult: 4, l_chips: 30, l_mult: 3, example: [{r:'5', s:'clubs'}, {r:'6', s:'diamonds'}, {r:'7', s:'spades'}, {r:'8', s:'hearts'}, {r:'9', s:'clubs'}] },
+            { id: 'THREE_OF_A_KIND', name: 'Trío', chips: 30, mult: 3, l_chips: 20, l_mult: 2, example: [{r:'7', s:'spades'}, {r:'7', s:'hearts'}, {r:'7', s:'diamonds'}] },
+            { id: 'TWO_PAIR', name: 'Doble Par', chips: 20, mult: 2, l_chips: 20, l_mult: 1, example: [{r:'J', s:'spades'}, {r:'J', s:'hearts'}, {r:'9', s:'clubs'}, {r:'9', s:'diamonds'}] },
+            { id: 'PAIR', name: 'Pareja', chips: 10, mult: 2, l_chips: 15, l_mult: 1, example: [{r:'K', s:'spades'}, {r:'K', s:'hearts'}] },
+            { id: 'HIGH_CARD', name: 'Carta Alta', chips: 5, mult: 1, l_chips: 10, l_mult: 1, example: [{r:'A', s:'spades'}] },
+        ];
+        const HAND_TYPES_MAP = ORDERED_HAND_TYPES.reduce((acc, hand) => ({ ...acc, [hand.id]: hand }), {});
+
+        const JOKER_DB = [
+            { 
+                id: 'joker_test_common', name: 'Prueba (C)', rarity: 'common', price: 1, 
+                icon: Sparkles || (() => null), desc: 'Sin efecto', flavor: 'Solo para probar', 
+                effect: (ctx) => ({}) 
+            },
+            { 
+                id: 'joker_test_uncommon', name: 'Prueba (PC)', rarity: 'uncommon', price: 1, 
+                icon: Sparkles || (() => null), desc: 'Sin efecto', flavor: 'Solo para probar', 
+                effect: (ctx) => ({}) 
+            },
+            { 
+                id: 'joker_test_rare', name: 'Prueba (R)', rarity: 'rare', price: 1, 
+                icon: Sparkles || (() => null), desc: 'Sin efecto', flavor: 'Solo para probar', 
+                effect: (ctx) => ({}) 
+            },
+        ];
+
+        const CONSUMABLES_DB = [
+            { id: 'tarot_fool', name: 'El Loco - 0', type: 'tarot', rarity: 'common', price: 3, icon: PixelTarot, desc: 'Crea 1 copia del último Tarot usado (máx 1)', effectType: 'spawn_last_tarot' },
+            { id: 'tarot_magician', name: 'El Mago - I', type: 'tarot', rarity: 'rare', price: 5, icon: PixelTarot, desc: '30% prob. de +20 Mult o +$3 (1 ronda)', effectType: 'buff_magician', },
+            { id: 'tarot_priestess', name: 'La Sacerdotisa - II', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: 'Acción Física: Mira 3 cartas, toma 1 (1/ronda)', effectType: 'action_high_priestess' },
+            { id: 'tarot_empress', name: 'La Emperatriz - III', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: 'Gana +$2 por cada Joker (máx 1/ronda)', effectType: 'money_joker_count' },
+            { id: 'tarot_hierophant', name: 'El Hierofante - V', type: 'tarot', rarity: 'uncommon', price: 4, icon: PixelTarot, desc: '+50 Fichas por cada Joker Poco Común+', effectType: 'buff_hierophant' },
+            { id: 'tarot_lovers', name: 'Los Enamorados - VI', type: 'tarot', rarity: 'uncommon', price: 3, icon: PixelTarot, desc: '+100 Fichas a todas las cartas (1 ronda)', effectType: 'buff_chips_all', amount: 100 },
+            { id: 'tarot_chariot', name: 'El Carro - VII', type: 'tarot', rarity: 'uncommon', price: 3, icon: PixelTarot, desc: '+100 Fichas (1 ronda)', effectType: 'buff_chips_global', amount: 100 },
+            { id: 'tarot_strength', name: 'La Fuerza - XI', type: 'tarot', rarity: 'uncommon', price: 4, icon: PixelTarot, desc: '+10 Mult si la mano es Póker o superior', effectType: 'buff_strength' },
+            { id: 'tarot_hermit', name: 'El Ermitaño - IX', type: 'tarot', rarity: 'uncommon', price: 4, icon: PixelTarot, desc: 'Duplica tu dinero, máx +$10 de ganancia', effectType: 'money_doubler' },
+            { id: 'tarot_wheel', name: 'La Rueda - X', type: 'tarot', rarity: 'common', price: 3, icon: PixelTarot, desc: '25% prob. de crear 1 Joker Común aleatorio', effectType: 'spawn_joker_chance' },
+            { id: 'tarot_justice', name: 'Justicia - XI', type: 'tarot', rarity: 'uncommon', price: 4, icon: PixelTarot, desc: 'X2 Mult Total (1 ronda)', effectType: 'buff_xmult_global', amount: 2 },
+            { id: 'tarot_hanged', name: 'El Colgado - XII', type: 'tarot', rarity: 'uncommon', price: 3, icon: PixelTarot, desc: '+200 Fichas, pero X0.5 Mult (1 ronda)', effectType: 'buff_hanged_man' },
+            { id: 'tarot_death', name: 'La Muerte - XIII', type: 'tarot', rarity: 'uncommon', price: 3, icon: PixelTarot, desc: '+50 Fichas a Figuras (1 ronda)', effectType: 'buff_rank_group', group: 'face', amount: 50 },
+            { id: 'tarot_temperance', name: 'Templanza - XIV', type: 'tarot', rarity: 'uncommon', price: 3, icon: PixelTarot, desc: 'Dinero = Valor venta Jokers', effectType: 'money_joker_val' },
+            { id: 'tarot_devil', name: 'El Diablo - XV', type: 'tarot', rarity: 'uncommon', price: 4, icon: PixelTarot, desc: '+$4 al final de esta ronda', effectType: 'buff_devil_end_round' },
+            { id: 'tarot_tower', name: 'La Torre - XVI', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: '+50 Fichas (1 ronda)', effectType: 'buff_chips_global', amount: 50 },
+            { id: 'tarot_star', name: 'La Estrella - XVII', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: '+50 Fichas a Diamantes (1 ronda)', effectType: 'buff_suit', suit: 'diamonds', amount: 50 },
+            { id: 'tarot_moon', name: 'La Luna - XVIII', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: '+50 Fichas a Picas (1 ronda)', effectType: 'buff_suit', suit: 'spades', amount: 50 },
+            { id: 'tarot_sun', name: 'El Sol - XIX', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: '+50 Fichas a Corazones (1 ronda)', effectType: 'buff_suit', suit: 'hearts', amount: 50 },
+            { id: 'tarot_judgment', name: 'Juicio - XX', type: 'tarot', rarity: 'rare', price: 5, icon: PixelTarot, desc: 'Crea 1 Joker aleatorio (Común/Poco Común)', effectType: 'spawn_joker_custom' },
+            { id: 'tarot_world', name: 'El Mundo - XXI', type: 'tarot', rarity: 'common', price: 2, icon: PixelTarot, desc: '+50 Fichas a Tréboles (1 ronda)', effectType: 'buff_suit', suit: 'clubs', amount: 50 },
+            
+            // PLANETAS
+            { id: 'planet_mercury', name: 'Mercurio', type: 'planet', rarity: 'common', price: 2, icon: PixelPlanet, desc: 'Nvl up Carta Alta', targetHandId: 'HIGH_CARD' },
+            { id: 'planet_venus', name: 'Venus', type: 'planet', rarity: 'common', price: 2, icon: PixelPlanet, desc: 'Nvl up Pareja', targetHandId: 'PAIR' },
+            { id: 'planet_earth', name: 'Tierra', type: 'planet', rarity: 'common', price: 2, icon: PixelPlanet, desc: 'Nvl up Doble Par', targetHandId: 'TWO_PAIR' },
+            { id: 'planet_mars', name: 'Marte', type: 'planet', rarity: 'common', price: 2, icon: PixelPlanet, desc: 'Nvl up Trío', targetHandId: 'THREE_OF_A_KIND' },
+            { id: 'planet_jupiter', name: 'Júpiter', type: 'planet', rarity: 'uncommon', price: 3, icon: PixelPlanet, desc: 'Nvl up Escalera', targetHandId: 'STRAIGHT' },
+            { id: 'planet_saturn', name: 'Saturno', type: 'planet', rarity: 'uncommon', price: 3, icon: PixelPlanet, desc: 'Nvl up Color', targetHandId: 'FLUSH' },
+            { id: 'planet_uranus', name: 'Urano', type: 'planet', rarity: 'uncommon', price: 3, icon: PixelPlanet, desc: 'Nvl up Full House', targetHandId: 'FULL_HOUSE' },
+            { id: 'planet_neptune', name: 'Neptuno', type: 'planet', rarity: 'uncommon', price: 3, icon: PixelPlanet, desc: 'Nvl up Póker', targetHandId: 'FOUR_OF_A_KIND' },
+            { id: 'planet_pluto', name: 'Plutón', type: 'planet', rarity: 'rare', price: 4, icon: PixelPlanet, desc: 'Nvl up Esc. Color', targetHandId: 'STRAIGHT_FLUSH' },
+            { id: 'planet_sol', name: 'Sol', type: 'planet', rarity: 'rare', price: 4, icon: PixelPlanet, desc: 'Nvl up Real', targetHandId: 'ROYAL_FLUSH' },
+            { id: 'planet_luna', name: 'Luna', type: 'planet', rarity: 'rare', price: 4, icon: PixelPlanet, desc: 'Nvl up 5 Iguales', targetHandId: 'FIVE_OF_A_KIND' },
+            { id: 'planet_asteroids', name: 'Asteroides', type: 'planet', rarity: 'rare', price: 4, icon: PixelPlanet, desc: 'Nvl up Full Color', targetHandId: 'FLUSH_HOUSE' },
+            { id: 'planet_comet', name: 'Cometa', type: 'planet', rarity: 'rare', price: 4, icon: PixelPlanet, desc: 'Nvl up Color de 5', targetHandId: 'FLUSH_FIVE' },
+        ];
+
+        // --- COMPONENTE DE NOTIFICACIÓN ---
+        const Notification = ({ message }) => {
+            if (!message) return null;
+            return (
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-black/90 border border-yellow-500/50 text-white px-6 py-4 rounded-xl shadow-2xl animate-fade-in text-center max-w-sm">
+                    <div className="text-yellow-400 font-bold mb-1 text-sm uppercase tracking-widest">Aviso</div>
+                    <div className="text-xs leading-relaxed whitespace-pre-line">{message}</div>
+                </div>
+            );
+        };
+
+        // --- LÓGICA & COMPONENTES ---
+        const getRarityColor = (rarity) => {
+            switch(rarity) {
+                case 'common': return 'border-blue-500';
+                case 'uncommon': return 'border-green-500';
+                case 'rare': return 'border-red-500';
+                case 'legendary': return 'border-yellow-400';
+                default: return 'border-slate-500';
+            }
+        };
+
+        const getRarityText = (rarity) => {
+            switch(rarity) {
+                case 'common': return 'text-blue-400';
+                case 'uncommon': return 'text-green-400';
+                case 'rare': return 'text-red-400';
+                case 'legendary': return 'text-yellow-400';
+                default: return 'text-slate-400';
+            }
+        };
+        
+        const getRandomRarity = () => {
+            const rand = Math.random();
+            if (rand < 0.40) return 'common';
+            if (rand < 0.75) return 'uncommon';
+            if (rand < 0.90) return 'rare';
+            return 'legendary';
+        };
+
+        const getCardValue = (rank) => {
+            if (rank === 'A') return 11;
+            if (['K', 'Q', 'J'].includes(rank)) return 10;
+            return parseInt(rank);
+        };
+
+        const evaluateHandDetailed = (cards) => {
+            if (cards.length === 0) return { type: HAND_TYPES_MAP.HIGH_CARD, scoringCards: [] };
+            const sortedCards = [...cards].sort((a, b) => RANKS.indexOf(b.rank) - RANKS.indexOf(a.rank));
+            const suits = sortedCards.map(c => c.suit);
+            const values = sortedCards.map(c => RANKS.indexOf(c.rank));
+            const rankCounts = {};
+            sortedCards.forEach(c => rankCounts[c.rank] = (rankCounts[c.rank] || 0) + 1);
+            const getCardsByCount = (n) => sortedCards.filter(c => rankCounts[c.rank] === n);
+            const isFlush = suits.every(s => s === suits[0]) && cards.length >= 5;
+            let isStraight = false;
+            if (cards.length === 5) {
+                const uniqueValues = [...new Set(values)];
+                if (uniqueValues.length === 5 && (uniqueValues[0] - uniqueValues[4] === 4)) isStraight = true;
+            }
+
+            if (isFlush && getCardsByCount(5).length === 5) return { type: HAND_TYPES_MAP.FLUSH_FIVE, scoringCards: sortedCards };
+            const threeKind = getCardsByCount(3);
+            const pairs = getCardsByCount(2);
+            const fiveKind = getCardsByCount(5);
+            const fourKind = getCardsByCount(4);
+
+            if (isFlush && threeKind.length === 3 && pairs.length >= 2) return { type: HAND_TYPES_MAP.FLUSH_HOUSE, scoringCards: sortedCards };
+            if (fiveKind.length === 5) return { type: HAND_TYPES_MAP.FIVE_OF_A_KIND, scoringCards: fiveKind };
+            if (isFlush && isStraight && values[0] === 12) return { type: HAND_TYPES_MAP.ROYAL_FLUSH, scoringCards: sortedCards };
+            if (isFlush && isStraight) return { type: HAND_TYPES_MAP.STRAIGHT_FLUSH, scoringCards: sortedCards };
+            if (fourKind.length === 4) return { type: HAND_TYPES_MAP.FOUR_OF_A_KIND, scoringCards: fourKind };
+            if (threeKind.length === 3 && pairs.length >= 2) return { type: HAND_TYPES_MAP.FULL_HOUSE, scoringCards: [...threeKind, ...pairs.slice(0, 2)] };
+            if (isFlush) return { type: HAND_TYPES_MAP.FLUSH, scoringCards: sortedCards };
+            if (isStraight) return { type: HAND_TYPES_MAP.STRAIGHT, scoringCards: sortedCards };
+            if (threeKind.length === 3) return { type: HAND_TYPES_MAP.THREE_OF_A_KIND, scoringCards: threeKind };
+            if (pairs.length >= 4) return { type: HAND_TYPES_MAP.TWO_PAIR, scoringCards: pairs.slice(0, 4) };
+            if (pairs.length === 2) return { type: HAND_TYPES_MAP.PAIR, scoringCards: pairs };
+            return { type: HAND_TYPES_MAP.HIGH_CARD, scoringCards: [sortedCards[0]] };
+        };
+
+        const calculateScoreLogic = (allPlayedCards, handResult, jokers, handLevels, activeBuffs, money = 0, discards = 0, totalJokers = 0, isRealScoring = false) => {
+            let chips = handResult.type.chips;
+            let mult = handResult.type.mult;
+            let dollars = 0;
+            let logs = [];
+
+            const level = handLevels?.[handResult.type.id] || 1;
+            if (level > 1) {
+                chips += (level - 1) * handResult.type.l_chips;
+                mult += (level - 1) * handResult.type.l_mult;
+            }
+
+            handResult.scoringCards.forEach(c => {
+                chips += c.value;
+                if (activeBuffs) {
+                    activeBuffs.forEach(buff => {
+                        if (buff.type === 'buff_suit' && c.suit === buff.suit) chips += buff.amount;
+                        if (buff.type === 'buff_rank_group' && buff.group === 'face' && ['K','Q','J'].includes(c.rank)) chips += buff.amount;
+                        if (buff.type === 'buff_chips_all') chips += buff.amount; 
+                    });
+                }
+            });
+
+            if (activeBuffs) {
+                activeBuffs.forEach(buff => {
+                    if (buff.type === 'buff_xmult_global') mult *= buff.amount;
+                    if (buff.type === 'buff_chips_global') chips += buff.amount; 
+                    if (buff.type === 'buff_hanged_man') { chips += 200; mult *= 0.5; }
+                    
+                    if (buff.type === 'buff_strength') {
+                        const handIndex = ORDERED_HAND_TYPES.findIndex(h => h.id === handResult.type.id);
+                        if (handIndex <= 5 && handIndex >= 0) {
+                            mult += 10;
+                        }
+                    }
+                    if (buff.type === 'buff_hierophant') {
+                        let specialJokers = 0;
+                        jokers.forEach(j => { if (j.rarity !== 'common') specialJokers++; });
+                        chips += (50 * specialJokers);
+                    }
+                    if (buff.type === 'buff_magician' && isRealScoring) {
+                        if (Math.random() < 0.30) {
+                            if (Math.random() < 0.5) {
+                                mult += 20; 
+                                logs.push({ source: 'El Mago - I', result: '¡Éxito! (+20 Mult)', type: 'success' });
+                            } else {
+                                dollars += 3;
+                                logs.push({ source: 'El Mago - I', result: '¡Éxito! (+$3)', type: 'success' });
+                            }
+                        } else {
+                            logs.push({ source: 'El Mago - I', result: 'Falló', type: 'fail' });
+                        }
+                    }
+                });
+            }
+
+            const ctx = { playedCards: allPlayedCards, handType: handResult.type, jokers: jokers, money: money, discards: discards, jokerCount: totalJokers };
+            jokers.forEach(joker => {
+                try {
+                    const effect = joker.effect(ctx);
+                    if (effect.chipsMod) chips += effect.chipsMod;
+                    if (effect.multMod) mult += effect.multMod;
+                    if (effect.xMultMod) mult *= effect.xMultMod;
+                } catch (e) {}
+            });
+
+            return { chips, mult, total: chips * mult, dollars, logs };
+        };
+
+        // --- GENERADOR TIENDA ---
+        const pickWeighted = (pool) => {
+            if (pool.length === 0) return null;
+            const targetRarity = getRandomRarity(); 
+            let candidates = pool.filter(i => i.rarity === targetRarity);
+            if (candidates.length === 0) {
+                if (targetRarity === 'legendary') candidates = pool.filter(i => i.rarity === 'rare');
+                if (candidates.length === 0) candidates = pool.filter(i => i.rarity === 'uncommon');
+                if (candidates.length === 0) candidates = pool.filter(i => i.rarity === 'common');
+                if (candidates.length === 0) candidates = pool; 
+            }
+            return candidates[Math.floor(Math.random() * candidates.length)];
+        };
+
+        const generateShopItems = () => {
+            const jokers = [];
+            const consumables = [];
+            
+            if (JOKER_DB.length > 0) {
+                for(let i=0; i<2; i++) {
+                    const rarity = getRandomRarity();
+                    let pool = JOKER_DB.filter(j => j.rarity === rarity);
+                    if (pool.length === 0) pool = JOKER_DB.filter(j => j.rarity === 'common');
+                    if (pool.length === 0) pool = JOKER_DB; 
+                    
+                    if (pool.length > 0) {
+                        const item = pool[Math.floor(Math.random() * pool.length)];
+                        const variance = Math.floor(Math.random() * 3) - 1;
+                        jokers.push({ ...item, uniqueId: Math.random(), currentPrice: Math.max(1, item.price + variance) });
+                    }
+                }
+            }
+
+            const planetsPool = CONSUMABLES_DB.filter(i => i.type === 'planet');
+            const tarotsPool = CONSUMABLES_DB.filter(i => i.type === 'tarot');
+
+            const planetItem = pickWeighted(planetsPool);
+            if (planetItem) {
+                consumables.push({ ...planetItem, uniqueId: Math.random(), currentPrice: planetItem.price });
+            }
+
+            let availableTarots = [...tarotsPool];
+            for(let i=0; i<2; i++) {
+                const tarotItem = pickWeighted(availableTarots);
+                if (tarotItem) {
+                    consumables.push({ ...tarotItem, uniqueId: Math.random(), currentPrice: tarotItem.price });
+                    availableTarots = availableTarots.filter(t => t.id !== tarotItem.id);
+                }
+            }
+            
+            return { jokers, consumables };
+        };
+
+        // --- COMPONENTES ---
+
+        const CardDisplay = ({ card, onDelete, isScoring, size = 'normal' }) => {
+            let dims = 'w-16 h-24 md:w-20 md:h-28';
+            if (size === 'help') dims = 'w-14 h-20';
+            else if (size === 'mini') dims = 'w-10 h-14';
+
+            const baseStyle = `relative ${dims} flex-shrink-0 select-none transition-all duration-150 rounded-lg flex items-center justify-center overflow-hidden ${onDelete ? 'cursor-pointer hover:ring-2 hover:ring-red-500 hover:scale-105 shadow-md' : 'shadow-sm'}`;
+            const scoringStyle = isScoring ? `transform -translate-y-2 z-10 border-2 border-yellow-400 shadow-[0_4px_0px_rgba(0,0,0,0.2)]` : `opacity-100 border-2 border-slate-700`; 
+
+            const suitIndex = SUIT_ORDER_IN_SPRITE.indexOf(card.suit);
+            const rankIndex = RANKS.indexOf(card.rank); 
+            const bgPosX = rankIndex * SPRITE_CARD_WIDTH;
+            const bgPosY = suitIndex * SPRITE_CARD_HEIGHT;
+
+            const isSpriteActive = DECK_SPRITE_URL && !DECK_SPRITE_URL.includes("PON_AQUI");
+
+            if (isSpriteActive) {
+                return (
+                    <div 
+                        className={`${baseStyle} ${scoringStyle} card-sprite`} 
+                        onClick={() => onDelete && onDelete(card.id)}
+                        style={{ 
+                            backgroundPosition: `-${bgPosX}px -${bgPosY}px`,
+                            width: SPRITE_CARD_WIDTH, 
+                            height: SPRITE_CARD_HEIGHT,
+                            transform: size === 'mini' ? 'scale(0.5)' : size === 'help' ? 'scale(0.7)' : 'scale(1)',
+                            transformOrigin: 'top left',
+                            marginBottom: size === 'mini' ? `-${SPRITE_CARD_HEIGHT/2}px` : size === 'help' ? `-${SPRITE_CARD_HEIGHT * 0.3}px` : '0px',
+                            marginRight: size === 'mini' ? `-${SPRITE_CARD_WIDTH/2}px` : size === 'help' ? `-${SPRITE_CARD_WIDTH * 0.3}px` : '0px',
+                        }}
+                    >
+                    </div>
+                );
+            }
+
+            const suitConfig = SUITS.find(s => s.id === card.suit);
+            const Icon = suitConfig?.icon || HelpCircle;
+            return (
+                <div className={`${baseStyle} ${scoringStyle} bg-white border-2 border-slate-300`} onClick={() => onDelete && onDelete(card.id)}>
+                    <div className={`absolute top-1 left-1.5 flex flex-col items-center leading-none text-xs ${suitConfig.color}`}>
+                        <span className="font-bold">{card.rank}</span>
+                        <Icon size={10} fill="currentColor" strokeWidth={3} className="mt-0.5" />
+                    </div>
+                    <div className={`flex flex-col items-center justify-center ${suitConfig.color}`}>
+                        <span className="text-2xl font-bold tracking-tighter">{card.rank}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        const PassScreen = ({ nextPlayer, onStart }) => (
+            <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 font-pixel text-white relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 pointer-events-none"></div>
+                <div className="absolute top-10 left-10 text-slate-800 animate-pulse"><Heart size={120} /></div>
+                <div className="absolute bottom-10 right-10 text-slate-800 animate-pulse"><Spade size={120} /></div>
+
+                <div className="retro-panel p-8 rounded-xl flex flex-col items-center gap-6 shadow-2xl max-w-sm w-full bg-slate-900/90 backdrop-blur z-10">
+                    <div className="text-center w-full">
+                        <h2 className="text-[10px] text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-700 pb-2">Siguiente Turno</h2>
+                        <div className="text-3xl text-white font-black drop-shadow-md tracking-tighter mb-2">{nextPlayer.name}</div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 w-full mt-2">
+                        <div className="bg-slate-950/50 p-3 rounded border border-slate-800 flex flex-col items-center">
+                            <span className="text-2xl text-red-400 font-bold mb-1">{nextPlayer.discards}</span>
+                            <span className="text-[8px] uppercase tracking-wide text-slate-500">Descartes</span>
+                        </div>
+                        <div className="bg-slate-950/50 p-3 rounded border border-slate-800 flex flex-col items-center">
+                            <span className="text-2xl text-yellow-400 font-bold mb-1">${nextPlayer.money}</span>
+                            <span className="text-[8px] uppercase tracking-wide text-slate-500">Dinero</span>
+                        </div>
+                    </div>
+
+                    <button onClick={onStart} className="w-full btn-3d btn-play py-4 text-sm rounded-lg mt-6 shadow-lg flex items-center justify-center gap-2">
+                        <Play size={16} fill="currentColor"/> EMPEZAR
+                    </button>
+                </div>
+            </div>
+        );
+
+        const HandsView = ({ player }) => {
+            const handsToShow = useMemo(() => [...ORDERED_HAND_TYPES].reverse(), []);
+            return (
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
+                <div className="text-center mb-6">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest bg-slate-900 inline-block px-4 py-1.5 rounded-full border border-slate-800">Manos de Póker</h3>
+                </div>
+                {handsToShow.map((hand) => {
+                    const currentLevel = player?.handLevels?.[hand.id] || 1;
+                    const isRare = ['FLUSH_FIVE', 'FLUSH_HOUSE', 'FIVE_OF_A_KIND'].includes(hand.id);
+                    const currentChips = hand.chips + (currentLevel - 1) * hand.l_chips;
+                    const currentMult = hand.mult + (currentLevel - 1) * hand.l_mult;
+                    return (
+                    <div key={hand.id} className={`relative rounded-xl border ${isRare ? 'border-yellow-500/30 bg-yellow-900/10' : 'border-slate-800 bg-slate-900'} p-3 flex flex-col gap-2 shadow-sm`}>
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                        <div className="flex items-center gap-2">
+                            <span className={`${isRare ? 'text-yellow-400' : 'text-slate-200'} font-bold text-sm tracking-wide`}>{hand.name}</span>
+                            <div className="flex items-center gap-1 ml-2 px-2 py-0.5 bg-slate-950 rounded-full border border-slate-800">
+                                <ArrowUpCircle size={10} className="text-blue-400" />
+                                <span className="text-[10px] font-bold text-blue-300">Nvl.{currentLevel}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs font-mono font-bold bg-black/40 px-2 py-1 rounded border border-white/5">
+                            <span className="text-blue-400">{currentChips}</span>
+                            <span className="text-slate-600 text-[10px] mx-1">X</span>
+                            <span className="text-red-500">{currentMult}</span>
+                        </div>
+                        </div>
+                        <div className="flex justify-center gap-3 mt-2">
+                        {hand.example.map((cardEx, i) => (
+                            <CardDisplay key={i} card={{rank: cardEx.r, suit: cardEx.s}} isScoring={true} size="help" />
+                        ))}
+                        </div>
+                    </div>
+                )})}
+                </div>
+            );
+        };
+
+        const TeamView = ({ player, onSellItem, onUseConsumable }) => {
+            return (
+                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24">
+                <div className="flex justify-between items-center mb-2 px-2">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><Sparkles size={14}/> Jokers ({player.jokers.length}/5)</h3>
+                    <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded text-yellow-400 text-xs font-bold border border-yellow-600/30"><Coins size={12} /> ${player.money}</div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                        {player.jokers.map((j, i) => {
+                            const Icon = j.icon || Sparkles;
+                            return (
+                            <div key={i} className={`bg-slate-800 border-2 ${getRarityColor(j.rarity)} p-3 rounded-xl flex flex-col items-center text-center relative hover:brightness-110 transition-all shadow-sm`}>
+                            <Icon className={`mb-2 ${getRarityText(j.rarity)}`} size={24} strokeWidth={1.5} />
+                            <div className="font-bold text-xs uppercase mb-1 tracking-wide text-white">{j.name}</div>
+                            <div className="text-[10px] text-slate-300 leading-tight bg-black/40 p-2 rounded w-full border border-white/5 min-h-[40px] flex items-center justify-center mb-2">{j.desc}</div>
+                            <div className="text-[9px] text-slate-500 italic mb-2 w-full truncate px-1">{j.flavor}</div>
+                            {j.handModifier && <div className="absolute top-1 right-1 bg-blue-900/80 text-blue-200 text-[8px] px-1 rounded border border-blue-500/30">+{j.handModifier}</div>}
+                            <button onClick={() => onSellItem(j, 'joker')} className="w-full btn-3d btn-sell text-xs py-2 rounded font-bold">Vender ${Math.floor(j.currentPrice / 2)}</button>
+                            </div>
+                        )})}
+                        {player.jokers.length < 5 && <div className="border-2 border-dashed border-slate-800 flex items-center justify-center p-4 rounded-xl h-full"><span className="text-slate-600 text-xs font-medium">Espacio Vacío</span></div>}
+                </div>
+
+                <div className="mt-6">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Scroll size={14}/> Consumibles ({player.consumables.length}/2)</h3>
+                    
+                    {player.activeBuffs && player.activeBuffs.length > 0 && (
+                        <div className="mb-4 p-2 bg-blue-900/30 border border-blue-500/30 rounded-lg">
+                            <div className="text-[8px] text-blue-300 font-bold mb-1">Efectos Activos:</div>
+                            {player.activeBuffs.map((buff, idx) => (
+                                <div key={idx} className="text-[8px] text-white flex items-center gap-1">
+                                    <ArrowUpCircle size={8} className="text-yellow-400"/> 
+                                    {(() => {
+                                        if (buff.type === 'buff_suit') {
+                                            const suitMap = { hearts: 'Corazones', diamonds: 'Diamantes', clubs: 'Tréboles', spades: 'Picas' };
+                                            return `+${buff.amount} Fichas a ${suitMap[buff.suit] || buff.suit}`;
+                                        }
+                                        if (buff.type === 'buff_chips_all') return `+${buff.amount} Fichas a Todo`;
+                                        if (buff.type === 'buff_chips_global') return `+${buff.amount} Fichas Global`;
+                                        if (buff.type === 'buff_xmult_global') return `X${buff.amount} Mult Total`;
+                                        if (buff.type === 'buff_magician_mult') return `Mago: +${buff.amount} Mult`;
+                                        if (buff.type === 'buff_magician_money') return `Mago: +$${buff.amount}/Mano`;
+                                        if (buff.type === 'buff_magician_fail') return `Mago: Falló`;
+                                        if (buff.type === 'buff_wheel_fail') return `Rueda: Falló`;
+                                        if (buff.type === 'buff_devil_end_round') return `+$4 Final Ronda`;
+                                        if (buff.type === 'buff_hanged_man') return `+200 Fichas / X0.5 Mult`;
+                                        if (buff.type === 'buff_hierophant') return `+50 Fichas por Joker Raro/Uncommon`;
+                                        if (buff.type === 'buff_strength') return `+10 Mult en Póker o mejor`;
+                                        if (buff.type === 'buff_priestess_action') return `Sacerdotisa: Mira 3, Guarda 1`;
+                                        if (buff.group === 'face') return `+${buff.amount} Fichas a Figuras`;
+                                        return 'Buff Activo';
+                                    })()}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                        {player.consumables.map((c, i) => {
+                            const Icon = c.icon || Scroll;
+                            const isTarot = c.type === 'tarot';
+                            const borderColor = isTarot ? 'border-purple-500/50' : 'border-cyan-500/50';
+                            const textColor = isTarot ? 'text-purple-300' : 'text-cyan-400';
+                            
+                            return (
+                            <div key={i} className={`bg-slate-800 border-2 ${borderColor} p-3 flex flex-col relative rounded-xl shadow-sm items-center text-center`}>
+                            <Icon className={`mb-2 ${textColor}`} size={20} />
+                            <div className={`text-xs font-bold uppercase mb-1 ${textColor}`}>{c.name}</div>
+                            <div className="text-[10px] text-slate-300 leading-tight mb-3">{c.desc}</div>
+                            <div className="flex gap-2 mt-auto w-full">
+                                <button onClick={() => onUseConsumable(c)} className={`w-full text-[10px] font-bold py-2 text-white rounded active:translate-y-0.5 transition-all border ${isTarot ? 'bg-purple-700 border-purple-500' : 'bg-cyan-700 border-cyan-500'}`}>USAR</button>
+                            </div>
+                            </div>
+                        )})}
+                    </div>
+                </div>
+                </div>
+            );
+        };
+
+        const ShopView = ({ player, shopItems, onBuy, onNext, onReroll, rerollCost }) => {
+            const myShop = shopItems || { jokers: [], consumables: [] };
+            return (
+                <div className="flex-1 flex flex-col bg-slate-950 p-4 font-pixel overflow-hidden">
+                <div className="text-center mb-4">
+                    <h2 className="text-xl text-yellow-400 mb-1">TIENDA</h2>
+                    <div className="text-[10px] text-slate-400">Turno de {player.name}</div>
+                </div>
+                <div className="flex justify-between items-center retro-panel p-3 rounded-xl mb-4">
+                    <span className="text-xs text-slate-400">Tu Dinero:</span>
+                    <span className="text-xl text-yellow-400 flex items-center gap-2"><Coins /> ${player.money}</span>
+                </div>
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 pb-20">
+                    <div>
+                        <h3 className="text-xs text-slate-500 uppercase mb-2 flex items-center gap-2"><Sparkles size={12}/> Jokers</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            {myShop.jokers.map((item) => {
+                                const Icon = item.icon || Sparkles;
+                                return (
+                                <button key={item.uniqueId} onClick={() => onBuy(item, 'joker')} disabled={player.money < item.currentPrice || (player.jokers.length >= 5)} className={`bg-slate-800 border-2 ${getRarityColor(item.rarity)} p-3 rounded-xl flex flex-col items-center text-center relative transition-all active:scale-95 ${player.money < item.currentPrice || (player.jokers.length >= 5) ? 'opacity-50' : 'hover:brightness-110'}`}>
+                                    <Icon className={`mb-2 ${getRarityText(item.rarity)}`} size={24} strokeWidth={1.5} />
+                                    <div className="font-bold text-xs text-white mb-1 mt-1">{item.name}</div>
+                                    <span className={`text-[6px] uppercase tracking-widest mb-2 ${getRarityText(item.rarity)}`}>{item.rarity}</span>
+                                    <div className="text-[10px] text-slate-400 leading-tight mb-2 min-h-[30px]">{item.desc}</div>
+                                    <div className="text-[9px] text-slate-500 italic mb-2">{item.flavor}</div>
+                                    <div className={`mt-auto w-full btn-3d ${player.money >= item.currentPrice && player.jokers.length < 5 ? 'btn-buy' : 'btn-disabled'} text-xs py-2 rounded font-bold`}>${item.currentPrice}</div>
+                                </button>
+                            )})}
+                            {myShop.jokers.length === 0 && <div className="text-slate-500 text-xs col-span-2 text-center py-4">Agotado</div>}
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-xs text-slate-500 uppercase mb-2 flex items-center gap-2"><Scroll size={12}/> Consumibles</h3>
+                        <div className="grid grid-cols-2 gap-3 pb-8"> 
+                            {myShop.consumables.map((item) => {
+                                const Icon = item.icon || Scroll;
+                                const isFull = item.type !== 'planet' && player.consumables.length >= 2;
+                                const isTarot = item.type === 'tarot';
+                                const borderColor = isTarot ? 'border-purple-500/50' : 'border-cyan-500/50';
+                                const textColor = isTarot ? 'text-purple-300' : 'text-cyan-400';
+
+                                return (
+                                <button key={item.uniqueId} onClick={() => onBuy(item, 'consumable')} disabled={player.money < item.currentPrice || isFull} className={`bg-slate-800 border-2 ${borderColor} p-3 rounded-xl flex flex-col items-center text-center relative transition-all active:scale-95 ${player.money < item.currentPrice || isFull ? 'opacity-50' : 'hover:brightness-110'}`}>
+                                    <Icon className={`mb-2 ${textColor}`} size={20} />
+                                    <div className={`font-bold text-xs mb-1 ${textColor}`}>{item.name}</div>
+                                    <div className="text-[10px] text-slate-400 leading-tight mb-2 min-h-[30px]">{item.desc}</div>
+                                    <div className={`mt-auto w-full btn-3d ${player.money >= item.currentPrice && !isFull ? 'btn-buy' : 'btn-disabled'} text-xs py-2 rounded font-bold`}>${item.currentPrice}</div>
+                                </button>
+                            )})}
+                            {myShop.consumables.length === 0 && <div className="text-slate-500 text-xs col-span-2 text-center py-4">Agotado</div>}
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="flex gap-2 mt-auto pt-4 pb-4 border-t border-white/5 bg-slate-950 shrink-0 z-10">
+                        <button 
+                            onClick={onReroll} 
+                            disabled={player.money < rerollCost}
+                            className={`flex-1 btn-3d btn-reroll py-4 text-xs text-white rounded-xl flex flex-col items-center justify-center gap-1 ${player.money < rerollCost ? 'btn-disabled' : ''}`}
+                        >
+                            <span className="flex items-center gap-1"><RefreshCw size={14}/> Renovar</span>
+                            <span className="text-yellow-300 font-bold">${rerollCost}</span>
+                        </button>
+                        <button onClick={onNext} className="flex-[2] btn-3d btn-shop py-4 text-sm text-white rounded-xl flex items-center justify-center gap-2">Terminar <ArrowRight size={16}/></button>
+                </div>
+                </div>
+            );
+        };
+
+        const BalatroCalculator = () => {
+            const [gameState, setGameState] = useState('menu');
+            const [players, setPlayers] = useState([]);
+            const [activePlayerIdx, setActivePlayerIdx] = useState(0);
+            const [setupPlayerCount, setSetupPlayerCount] = useState(2);
+            const [setupPlayerNames, setSetupPlayerNames] = useState(['Jugador 1', 'Jugador 2']);
+            const [roundNumber, setRoundNumber] = useState(1);
+            const [activeTab, setActiveTab] = useState('table'); 
+            
+            const [playerShops, setPlayerShops] = useState({}); 
+            const [activeShopPlayerIdx, setActiveShopPlayerIdx] = useState(0);
+            const [rerollCost, setRerollCost] = useState(5); 
+
+            const [builtHand, setBuiltHand] = useState([]);
+            const [selectedRank, setSelectedRank] = useState(null);
+            const [scoringData, setScoringData] = useState(null);
+            const [setupRoundCount, setSetupRoundCount] = useState(3);
+            const [notification, setNotification] = useState(null); // Nuevo estado para notificaciones
+
+            const activePlayer = players[activePlayerIdx];
+            
+            const detailedHandResult = useMemo(() => evaluateHandDetailed(builtHand), [builtHand]);
+            const scorePreview = useMemo(() => {
+                if (!activePlayer) return { chips: 0, mult: 0, total: 0 };
+                return calculateScoreLogic(builtHand, detailedHandResult, activePlayer.jokers, activePlayer.handLevels, activePlayer.activeBuffs, activePlayer.money, activePlayer.discards, activePlayer.jokers.length);
+            }, [builtHand, detailedHandResult, activePlayer]);
+            
+            const currentHandSize = useMemo(() => {
+                if (!activePlayer) return 8;
+                const base = 8;
+                const modifier = activePlayer.jokers.reduce((acc, joker) => acc + (joker.handModifier || 0), 0);
+                return base + modifier;
+            }, [activePlayer]);
+
+            useEffect(() => {
+                setSetupPlayerNames(prev => {
+                    const newNames = [...prev];
+                    if (setupPlayerCount > prev.length) {
+                        for (let i = prev.length; i < setupPlayerCount; i++) newNames.push(`Jugador ${i + 1}`);
+                    } else {
+                        return newNames.slice(0, setupPlayerCount);
+                    }
+                    return newNames;
+                });
+            }, [setupPlayerCount]);
+
+            // --- NOTIFICATION HELPER ---
+            const showNotification = (msg) => {
+                setNotification(msg);
+                setTimeout(() => setNotification(null), 4000);
+            };
+
+            // --- LÓGICA COPIADA Y ADAPTADA DEL REACT APP ---
+            const initGame = () => {
+                const initialHandLevels = ORDERED_HAND_TYPES.reduce((acc, h) => ({ ...acc, [h.id]: 1 }), {});
+                const newPlayers = setupPlayerNames.map((name, i) => {
+                return {
+                    id: i + 1, name: name || `Jugador ${i+1}`, score: 0, roundScore: 0, discards: 3, money: 4, hasPlayed: false,
+                    handLevels: { ...initialHandLevels }, jokers: [], consumables: [], activeBuffs: [], wins: 0,
+                    lastUsedTarot: null, foolUsedRound: false 
+                };
+                });
+                setPlayers(newPlayers);
+                setActivePlayerIdx(0);
+                setRoundNumber(1);
+                setGameState('playing');
+                setActiveTab('table');
+                setBuiltHand([]);
+            };
+
+            const handleUseConsumable = (item) => {
+                const updatedPlayers = players.map((p, i) => {
+                    if (i !== activePlayerIdx) return p;
+                    return { 
+                        ...p, 
+                        activeBuffs: [...p.activeBuffs],
+                        consumables: [...p.consumables]
+                    }; 
+                });
+                const player = updatedPlayers[activePlayerIdx];
+                
+                if (item.type === 'tarot') {
+                    // El Loco
+                    if (item.id === 'tarot_fool') {
+                        if (!player.foolUsedRound && player.lastUsedTarot) {
+                            const lastTarot = CONSUMABLES_DB.find(c => c.id === player.lastUsedTarot);
+                            if (lastTarot && lastTarot.id !== 'tarot_fool') {
+                                if (player.consumables.length < 2) { 
+                                    const copy = { ...lastTarot, uniqueId: Math.random(), currentPrice: lastTarot.price };
+                                    player.consumables.push(copy);
+                                    player.foolUsedRound = true; 
+                                }
+                            }
+                        }
+                    } 
+                    else {
+                        player.lastUsedTarot = item.id; 
+                        
+                        if (item.id === 'tarot_empress') {
+                            if (!item.usedThisRound) {
+                                player.money += (2 * player.jokers.length);
+                            }
+                        }
+                        else if (item.id === 'tarot_hermit') player.money += Math.min(10, player.money); 
+                        else if (item.id === 'tarot_temperance') {
+                            const sellValueTotal = player.jokers.reduce((acc, j) => acc + Math.floor(j.currentPrice / 2), 0);
+                            player.money += sellValueTotal;
+                        }
+                        else if (item.effectType === 'action_high_priestess') {
+                            showNotification("INSTRUCCIÓN FÍSICA:\n\nToma las 3 cartas superiores de tu mazo físico.\nElige 1 para tu mano.\nBaraja el resto en el mazo.");
+                            player.activeBuffs.push({ type: 'buff_priestess_action' });
+                        }
+                        else if (item.effectType === 'spawn_joker_custom') {
+                            if (player.jokers.length < 5) {
+                                const pool = JOKER_DB.filter(j => j.rarity === 'common' || j.rarity === 'uncommon');
+                                if (pool.length > 0) {
+                                    const newJ = { ...pool[Math.floor(Math.random() * pool.length)], uniqueId: Math.random(), currentPrice: 0 };
+                                    player.jokers.push(newJ);
+                                } else {
+                                    showNotification("No hay Jokers disponibles en la base de datos.");
+                                }
+                            } else {
+                                showNotification("No tienes espacio para más Jokers.");
+                            }
+                        }
+                        else if (item.effectType === 'spawn_joker_chance') {
+                            if (Math.random() < 0.25) { 
+                                if (player.jokers.length < 5) {
+                                    const commonJokers = JOKER_DB.filter(j => j.rarity === 'common');
+                                    if (commonJokers.length > 0) {
+                                        const newJ = { ...commonJokers[Math.floor(Math.random() * commonJokers.length)], uniqueId: Math.random(), currentPrice: 0 };
+                                        player.jokers.push(newJ);
+                                        showNotification("¡ÉXITO! Se ha creado un Joker."); 
+                                        player.activeBuffs.push({ type: 'buff_wheel_success' });
+                                    } else {
+                                        showNotification("¡ÉXITO! Pero no hay Jokers en la base de datos."); 
+                                    }
+                                } else {
+                                    showNotification("¡ÉXITO! Pero no tienes espacio para Jokers.");
+                                }
+                            } else {
+                                player.activeBuffs.push({ type: 'buff_wheel_fail' });
+                            }
+                        }
+                        else if (item.effectType === 'buff_magician') {
+                            if (Math.random() < 0.30) {
+                                if (Math.random() < 0.5) {
+                                    player.activeBuffs.push({ type: 'buff_magician_mult', amount: 20 });
+                                } else {
+                                    player.activeBuffs.push({ type: 'buff_magician_money', amount: 3 });
+                                }
+                            } else {
+                                player.activeBuffs.push({ type: 'buff_magician_fail' });
+                            }
+                        }
+                        else if (['buff_chips_all', 'buff_xmult_global', 'buff_suit', 'buff_rank_group', 'buff_chips_global', 'buff_devil_end_round', 'buff_hanged_man', 'buff_hierophant', 'buff_strength'].includes(item.effectType)) {
+                            player.activeBuffs.push({ 
+                                type: item.effectType, 
+                                suit: item.suit, 
+                                group: item.group, 
+                                amount: item.amount 
+                            });
+                        }
+                    }
+                }
+                else if (item.type === 'planet' && item.targetHandId) {
+                    player.handLevels[item.targetHandId] += 1;
+                }
+
+                player.consumables = player.consumables.filter(c => c.uniqueId !== item.uniqueId);
+                setPlayers(updatedPlayers);
+            };
+
+            // Resto de funciones auxiliares (startNewRound, handleShopBuy, etc) se mantienen idénticas
+            // Solo asegurando que el 'alert' de otras partes use showNotification si existen
+            // ... (Copiando lógica exacta de los handlers del componente React original)
+
+            const startNewRound = () => {
+                if (roundNumber >= setupRoundCount) {
+                    setGameState('game_over');
+                    return;
+                }
+                const sortedByScore = [...players].sort((a, b) => b.roundScore - a.roundScore);
+                const winnerId = sortedByScore[0].id;
+                const rewardedPlayers = players.map(p => {
+                    let bonus = 2; if (p.id === sortedByScore[0].id) bonus = 6; else if (p.id === sortedByScore[1].id) bonus = 4; 
+                    let money = p.money + bonus;
+                    const hasDevil = p.activeBuffs && p.activeBuffs.some(b => b.type === 'buff_devil_end_round');
+                    if (hasDevil) money += 4;
+                    const safeCtx = { playedCards: [], handType: {id:'none'}, jokers: p.jokers, money: p.money, discards: p.discards };
+                    p.jokers.forEach(j => { try { const effect = j.effect(safeCtx); if (effect.endRoundMoney) money += effect.endRoundMoney; if (effect.endRoundValue) j.currentPrice += effect.endRoundValue; } catch(e) {} });
+                    const newWins = p.id === winnerId ? p.wins + 1 : p.wins;
+                    return { ...p, money: money, wins: newWins, discards: 3, hasPlayed: false, roundScore: 0, activeBuffs: [], foolUsedRound: false };
+                });
+                const rankedPlayers = [...rewardedPlayers].sort((a, b) => {
+                    const scoreA = players.find(old => old.id === a.id).roundScore;
+                    const scoreB = players.find(old => old.id === b.id).roundScore;
+                    return scoreB - scoreA;
+                });
+                setPlayers(rankedPlayers);
+                const newShops = {};
+                rankedPlayers.forEach(p => { newShops[p.id] = generateShopItems(); });
+                setPlayerShops(newShops);
+                setActiveShopPlayerIdx(0);
+                setRerollCost(5); 
+                setGameState('shop');
+            };
+
+            const handleShopBuy = (item, type) => {
+                const currentPlayer = players[activeShopPlayerIdx];
+                if (currentPlayer.money < item.currentPrice) return;
+                const updatedPlayers = [...players];
+                const playerToUpdate = updatedPlayers[activeShopPlayerIdx];
+                if (type === 'consumable' && item.type === 'planet') {
+                    playerToUpdate.money -= item.currentPrice;
+                    if (item.targetHandId) playerToUpdate.handLevels[item.targetHandId] += 1;
+                } else {
+                    if (type === 'joker' && playerToUpdate.jokers.length >= 5) return;
+                    if (type === 'consumable' && playerToUpdate.consumables.length >= 2) return;
+                    playerToUpdate.money -= item.currentPrice;
+                    if (type === 'joker') playerToUpdate.jokers.push(item);
+                    else playerToUpdate.consumables.push(item);
+                }
+                setPlayers(updatedPlayers);
+                setPlayerShops(prev => ({ ...prev, [currentPlayer.id]: {
+                    jokers: type === 'joker' ? prev[currentPlayer.id].jokers.filter(j => j.uniqueId !== item.uniqueId) : prev[currentPlayer.id].jokers,
+                    consumables: type === 'consumable' ? prev[currentPlayer.id].consumables.filter(c => c.uniqueId !== item.uniqueId) : prev[currentPlayer.id].consumables
+                }}));
+            };
+
+            const handleSellItem = (item, type) => {
+                const updatedPlayers = [...players];
+                const currentPlayer = updatedPlayers[activePlayerIdx]; 
+                const sellPrice = Math.floor(item.currentPrice / 2);
+                currentPlayer.money += sellPrice;
+                if (type === 'joker') currentPlayer.jokers = currentPlayer.jokers.filter(j => j.uniqueId !== item.uniqueId);
+                else currentPlayer.consumables = currentPlayer.consumables.filter(c => c.uniqueId !== item.uniqueId);
+                setPlayers(updatedPlayers);
+            };
+
+            const handleReroll = () => {
+                const player = players[activeShopPlayerIdx];
+                if (player.money < rerollCost) return;
+                const updatedPlayers = [...players];
+                updatedPlayers[activeShopPlayerIdx].money -= rerollCost;
+                setPlayers(updatedPlayers);
+                const newItems = generateShopItems();
+                setPlayerShops(prev => ({ ...prev, [player.id]: newItems }));
+                setRerollCost(prev => prev + 1);
+            };
+
+            const handleNextShopTurn = () => {
+                if (activeShopPlayerIdx < players.length - 1) {
+                    setActiveShopPlayerIdx(prev => prev + 1);
+                    setRerollCost(5); 
+                } else {
+                    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
+                    setPlayers(shuffledPlayers);
+                    setActivePlayerIdx(0);
+                    setRoundNumber(prev => prev + 1);
+                    setGameState('pass_screen'); 
+                    setBuiltHand([]);
+                    setActiveTab('table');
+                }
+            };
+
+            const handleDiscard = () => {
+                const updatedPlayers = [...players];
+                if (updatedPlayers[activePlayerIdx].discards > 0) {
+                    updatedPlayers[activePlayerIdx].discards -= 1;
+                    setPlayers(updatedPlayers);
+                    setBuiltHand([]);
+                    setSelectedRank(null);
+                    passTurn(updatedPlayers);
+                }
+            };
+
+            const passTurn = (currentPlayers) => {
+                let nextIdx = (activePlayerIdx + 1) % currentPlayers.length;
+                let attempts = 0;
+                while (currentPlayers[nextIdx].hasPlayed && attempts < currentPlayers.length) {
+                    nextIdx = (nextIdx + 1) % currentPlayers.length;
+                    attempts++;
+                }
+                if (currentPlayers.every(p => p.hasPlayed)) {
+                    setGameState('round_summary');
+                } else {
+                    setActivePlayerIdx(nextIdx);
+                    setBuiltHand([]);
+                    setSelectedRank(null);
+                    setActiveTab('table');
+                    setGameState('pass_screen');
+                }
+            };
+
+            const startTurn = () => { setGameState('playing'); };
+            const addCard = (rank, suit) => {
+                if (builtHand.length >= 5) return;
+                setBuiltHand([...builtHand, { id: Math.random().toString(36), rank, suit, value: getCardValue(rank) }]);
+                setSelectedRank(null);
+            };
+            const removeCard = (id) => setBuiltHand(builtHand.filter(c => c.id !== id));
+
+            const confirmHand = async () => {
+                if (builtHand.length === 0) return;
+                setGameState('scoring');
+                const result = calculateScoreLogic(builtHand, detailedHandResult, activePlayer.jokers, activePlayer.handLevels, activePlayer.activeBuffs, activePlayer.money, activePlayer.discards, activePlayer.jokers.length, true);
+                setScoringData({ chips: result.chips, mult: result.mult, total: result.total, handName: detailedHandResult.type.name, logs: result.logs });
+                await new Promise(r => setTimeout(r, 2000));
+                const updatedPlayers = [...players];
+                updatedPlayers[activePlayerIdx].score += result.total;
+                updatedPlayers[activePlayerIdx].roundScore = result.total;
+                updatedPlayers[activePlayerIdx].money += result.dollars; 
+                updatedPlayers[activePlayerIdx].hasPlayed = true;
+                updatedPlayers[activePlayerIdx].lastHandPlayed = detailedHandResult.type.name;
+                setPlayers(updatedPlayers);
+                setScoringData(null);
+                passTurn(updatedPlayers);
+            };
+            
+            const handleNameChange = (idx, val) => { const newNames = [...setupPlayerNames]; newNames[idx] = val; setSetupPlayerNames(newNames); };
+            const getDeckRecommendation = () => { if (setupPlayerCount <= 3) return { count: 2, color: 'text-blue-400' }; if (setupPlayerCount <= 5) return { count: 3, color: 'text-purple-400' }; return { count: 4, color: 'text-red-400' }; };
+
+            // --- RENDERIZADO CONDICIONAL ---
+            return (
+                <div className="h-full w-full relative">
+                    <Notification message={notification} />
+                    
+                    {gameState === 'menu' && (
+                        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white font-pixel overflow-hidden relative">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none"></div>
+                            <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-6 h-full justify-center">
+                                <div className="text-center">
+                                <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-400 via-white to-blue-600 tracking-tighter drop-shadow-2xl">BALATRO</h1>
+                                <div className="text-xs font-bold text-yellow-500 tracking-[0.5em] uppercase mt-2">Versus Calculator</div>
+                                </div>
+                                <div className="w-full bg-slate-900/80 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl flex flex-col gap-6 max-h-[60vh] flex-shrink-0">
+                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-2xl border border-white/5">
+                                        <button onClick={() => setSetupRoundCount(Math.max(1, setupRoundCount - 1))} className="w-12 h-12 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95 border border-white/5"><Minus className="text-slate-300" /></button>
+                                        <div className="flex flex-col items-center"><span className="text-4xl font-black text-yellow-400">{setupRoundCount}</span><span className="text-[10px] text-slate-500 font-bold uppercase">Rondas</span></div>
+                                        <button onClick={() => setSetupRoundCount(Math.min(20, setupRoundCount + 1))} className="w-12 h-12 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95 border border-white/5"><Plus className="text-slate-300" /></button>
+                                    </div>
+                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-2xl border border-white/5">
+                                        <button onClick={() => setSetupPlayerCount(Math.max(2, setupPlayerCount - 1))} className="w-12 h-12 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95 border border-white/5"><Minus className="text-slate-300" /></button>
+                                        <div className="flex flex-col items-center"><span className="text-4xl font-black text-white">{setupPlayerCount}</span><span className="text-[10px] text-slate-500 font-bold uppercase">Jugadores</span></div>
+                                        <button onClick={() => setSetupPlayerCount(Math.min(8, setupPlayerCount + 1))} className="w-12 h-12 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all shadow-lg active:scale-95 border border-white/5"><Plus className="text-slate-300" /></button>
+                                    </div>
+                                    <div className="space-y-3 overflow-y-auto pr-2 no-scrollbar flex-1">
+                                        {setupPlayerNames.map((name, i) => (
+                                            <div key={i} className="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 border border-white/5">{i + 1}</div>
+                                                <input type="text" value={name} onChange={(e) => handleNameChange(i, e.target.value)} className="bg-transparent border-none outline-none text-white font-bold text-sm flex-1 placeholder-slate-600 focus:text-blue-300 transition-colors" placeholder={`Jugador ${i+1}`} />
+                                                <Edit3 size={14} className="text-slate-600" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur px-5 py-4 rounded-2xl border border-white/5 w-full shrink-0 shadow-xl">
+                                    <div className={`p-2 rounded-lg bg-slate-800 ${getDeckRecommendation().color}`}><Layers size={20} /></div>
+                                    <div className="flex flex-col"><span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Recomendación</span><span className="text-sm text-slate-200">Mezclar <span className={`${getDeckRecommendation().color} font-black text-base`}>{getDeckRecommendation().count}</span> barajas físicas.</span></div>
+                                </div>
+                                <button onClick={initGame} className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black text-lg text-white shadow-[0_4px_0_rgb(30,58,138)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-wide shrink-0">Comenzar Partida</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {gameState === 'game_over' && (
+                         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white font-pixel relative overflow-hidden">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(253,224,71,0.1),transparent_70%)] pointer-events-none animate-pulse"></div>
+                            <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8">
+                                <div className="text-center">
+                                    <PixelTrophy size={80} className="text-yellow-400 mb-4 mx-auto drop-shadow-[0_0_20px_rgba(250,204,21,0.6)] animate-bounce" />
+                                    <h2 className="text-lg text-yellow-200 uppercase tracking-widest mb-2">Ganador</h2>
+                                    <h1 className="text-4xl font-black text-white drop-shadow-xl">{[...players].sort((a, b) => b.score - a.score)[0].name}</h1>
+                                    <div className="text-2xl text-blue-300 mt-2 font-mono">{[...players].sort((a, b) => b.score - a.score)[0].score.toLocaleString()} pts</div>
+                                </div>
+                                <div className="w-full bg-slate-900/90 border-4 border-slate-700 p-6 rounded-3xl shadow-2xl flex flex-col gap-4">
+                                    <h3 className="text-xs text-slate-500 uppercase tracking-widest text-center border-b border-slate-800 pb-2 mb-2">Ranking Final</h3>
+                                    {[...players].sort((a, b) => b.score - a.score).map((p, idx) => (
+                                        <div key={p.id} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-slate-400 text-black' : idx === 2 ? 'bg-orange-700 text-white' : 'bg-slate-800 text-slate-500'}`}>{idx + 1}</div>
+                                                <span className={`text-sm ${idx === 0 ? 'text-white font-bold' : 'text-slate-400'}`}>{p.name}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-sm font-mono text-blue-400 block">{p.score.toLocaleString()}</span>
+                                                <span className="text-[8px] text-slate-500 font-bold uppercase">{p.wins} Victorias</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={() => setGameState('menu')} className="w-full btn-3d btn-play py-5 text-lg rounded-xl shadow-lg">Volver al Menú</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {gameState === 'pass_screen' && <PassScreen nextPlayer={players[activePlayerIdx]} onStart={startTurn} />}
+
+                    {gameState === 'round_summary' && (
+                        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white font-pixel relative">
+                            <PixelTrophy size={80} className="text-yellow-500 mb-6 drop-shadow-2xl animate-bounce" />
+                            <h2 className="text-3xl font-black text-white mb-8 text-center uppercase tracking-tighter">Ronda {roundNumber} / {setupRoundCount}</h2>
+                            <div className="w-full max-w-md space-y-3 mb-10 px-2 relative z-10">
+                            {players.sort((a,b)=>b.roundScore-a.roundScore).map((p, idx) => {
+                                const rankBonus = idx === 0 ? 6 : idx === 1 ? 4 : 2; 
+                                const jokerBonus = p.jokers.reduce((acc, j) => {
+                                    let bonus = 0; try { const effect = j.effect({}); if(effect.endRoundMoney) bonus = effect.endRoundMoney; } catch(e){} return acc + bonus;
+                                }, 0);
+                                const hasDevil = p.activeBuffs && p.activeBuffs.some(b => b.type === 'buff_devil_end_round');
+                                const totalBonus = jokerBonus + (hasDevil ? 4 : 0);
+                                return (
+                                <div key={p.id} className={`p-4 rounded-2xl border flex justify-between items-center transition-all ${idx === 0 ? 'bg-gradient-to-r from-slate-800 to-slate-900 border-yellow-500/50 shadow-lg scale-105 z-10' : 'bg-slate-900/50 border-white/5'}`}>
+                                    <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${idx === 0 ? 'bg-yellow-500 text-black' : 'bg-slate-800 text-slate-500'}`}>#{idx + 1}</div>
+                                    <div className="flex flex-col">
+                                        <div className="font-bold text-lg">{p.name}</div>
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{p.lastHandPlayed || 'N/A'}</div>
+                                        <div className="text-[8px] text-yellow-500 flex items-center gap-1 mt-1">
+                                            {Array.from({length: p.wins}).map((_, i) => <PixelTrophy key={i} size={8}/>)}
+                                        </div>
+                                    </div>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end">
+                                        <div className="text-xl font-mono font-black text-blue-400">{p.roundScore.toLocaleString()}</div>
+                                        <div className="flex items-center gap-2 mt-1 text-[9px]">
+                                            <span className="text-yellow-400 flex items-center gap-0.5"><Coins size={8} /> +${rankBonus}</span>
+                                            {totalBonus > 0 && <span className="text-green-400 flex items-center gap-0.5"><Coins size={8} /> +${totalBonus}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            )})}
+                            </div>
+                            <button onClick={startNewRound} className="w-full max-w-sm btn-3d btn-play py-4 text-lg rounded-xl">
+                                {roundNumber >= setupRoundCount ? 'Ver Resultados Finales' : 'Ir a la Tienda'}
+                            </button>
+                        </div>
+                    )}
+
+                    {gameState === 'shop' && (
+                        <div className="fixed inset-0 bg-slate-950 flex flex-col text-slate-100 font-pixel overflow-hidden">
+                            <ShopView 
+                                player={players[activeShopPlayerIdx]} 
+                                shopItems={playerShops[players[activeShopPlayerIdx].id] || { jokers: [], consumables: [] }} 
+                                onBuy={handleShopBuy} 
+                                onNext={handleNextShopTurn} 
+                                onReroll={handleReroll}
+                                rerollCost={rerollCost}
+                            />
+                        </div>
+                    )}
+
+                    {(gameState === 'playing' || gameState === 'scoring') && (
+                        <div className="fixed inset-0 bg-slate-950 flex flex-col text-slate-100 font-pixel overflow-hidden">
+                            {/* Header */}
+                            <div className="relative z-20 bg-slate-900/95 backdrop-blur px-4 pt-4 pb-3 border-b border-white/5 flex justify-between items-end shadow-2xl shrink-0">
+                                <div className="pb-0.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="px-2 py-0.5 rounded bg-slate-800 text-[10px] font-bold text-slate-400 uppercase border border-white/5">Turno</div>
+                                        <div className="flex -space-x-1">
+                                            {activePlayer?.jokers.map((j, i) => (
+                                                <div key={i} className={`w-3 h-3 border border-slate-900 rounded-full ${i === 0 ? 'bg-blue-500' : 'bg-purple-500'}`} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="text-xl text-white leading-normal tracking-tight truncate max-w-[200px] pb-1">{activePlayer?.name}</div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="bg-black/20 px-3 py-1.5 border border-white/5 flex flex-col items-center mb-0.5 rounded-lg">
+                                        <div className="flex items-center gap-1 mb-0.5"><Hand size={10} className="text-blue-400" /><span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Cartas</span></div>
+                                        <span className="text-xl leading-none text-blue-400">{currentHandSize}</span>
+                                    </div>
+                                    <div className="bg-black/20 px-3 py-1.5 border border-white/5 flex flex-col items-center mb-0.5 rounded-lg">
+                                        <div className="flex items-center gap-1 mb-0.5"><Trash2 size={10} className="text-slate-500" /><span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Desc.</span></div>
+                                        <span className={`text-xl leading-none ${activePlayer?.discards > 0 ? 'text-red-400' : 'text-slate-600'}`}>{activePlayer?.discards}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Body */}
+                            {gameState === 'scoring' && scoringData ? (
+                                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in zoom-in duration-300">
+                                    <div className="text-center w-full px-4">
+                                    <div className="text-slate-500 uppercase tracking-[0.3em] text-xs font-bold mb-6">{scoringData.handName}</div>
+                                    <div className="flex justify-center items-end gap-3 mb-8 font-mono">
+                                        <div className="bg-blue-950/50 border border-blue-500/30 px-4 py-2 rounded-xl"><span className="text-3xl font-black text-blue-400">{scoringData.chips}</span></div>
+                                        <span className="text-slate-600 text-2xl font-black">X</span>
+                                        <div className="bg-red-950/50 border border-red-500/30 px-4 py-2 rounded-xl"><span className="text-3xl font-black text-red-400">{scoringData.mult}</span></div>
+                                    </div>
+                                    <div className="text-6xl font-black text-white tracking-tighter drop-shadow-[0_0_30px_rgba(255,255,255,0.2)] animate-pulse">{scoringData.total.toLocaleString()}</div>
+                                    <div className="mt-8 space-y-2">
+                                        {scoringData.logs && scoringData.logs.map((log, i) => (
+                                            <div key={i} className={`text-xs font-bold ${log.type === 'success' ? 'text-green-400' : 'text-red-400'} animate-pulse`}>{log.source}: {log.result}</div>
+                                        ))}
+                                    </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col overflow-hidden relative">
+                                    {activeTab === 'table' && (
+                                        <div className="px-2 pt-2 z-20">
+                                            <div className="retro-panel p-4 flex items-center justify-between h-24 rounded-lg bg-slate-900/95 backdrop-blur shadow-xl">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{builtHand.length > 0 ? detailedHandResult.type.name : 'Mano Vacía'}</span>
+                                                    <div className="flex items-baseline gap-2 font-mono text-sm">
+                                                        <span className="text-blue-400 font-black text-lg">{scorePreview.chips}</span>
+                                                        <span className="text-slate-600 font-bold">x</span>
+                                                        <span className="text-red-400 font-black text-lg">{scorePreview.mult}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="text-4xl font-black text-white tracking-tighter drop-shadow-md">{scorePreview.total.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'hands' && <HandsView player={activePlayer} />}
+                                    {activeTab === 'team' && <TeamView player={activePlayer} onSellItem={handleSellItem} onUseConsumable={handleUseConsumable} />}
+
+                                    {activeTab === 'table' && (
+                                        <div className="flex-1 overflow-y-auto p-2">
+                                            <div className="flex-col gap-2 min-h-0 flex-1 pt-2">
+                                                <div className="flex items-center justify-center py-4">
+                                                    <div className="flex gap-2 justify-center w-full flex-wrap">
+                                                    {Array.from({ length: 5 }).map((_, i) => {
+                                                        const card = builtHand[i];
+                                                        const isScoring = card && detailedHandResult.scoringCards.some(sc => sc.id === card.id);
+                                                        return card ? (
+                                                        <CardDisplay key={card.id} card={card} onDelete={removeCard} isScoring={isScoring} />
+                                                        ) : (
+                                                        <div key={i} className="w-16 h-24 md:w-20 md:h-28 rounded-xl border-2 border-dashed border-slate-800 bg-slate-900/50 flex items-center justify-center"><span className="text-slate-700 text-xs font-bold">{i + 1}</span></div>
+                                                        );
+                                                    })}
+                                                    </div>
+                                                </div>
+                                                <div className="retro-panel p-3 mb-4 rounded-t-lg border-b-0 bg-[#0f172a]">
+                                                    <div className="text-center mb-2"><span className={`text-[10px] font-bold uppercase tracking-widest ${selectedRank ? 'text-yellow-500' : 'text-slate-500'}`}>{selectedRank ? `Seleccionado: ${selectedRank}` : '1. Elige Valor'}</span></div>
+                                                    <div className="flex overflow-x-auto gap-2 py-2 px-1 mb-4 snap-x justify-center">
+                                                        <div className="flex gap-2 mx-auto min-w-full justify-center">
+                                                            {RANKS.map(rank => (
+                                                            <button key={rank} onClick={() => setSelectedRank(rank)} className={`btn-3d flex-shrink-0 w-12 h-14 rounded text-sm ${selectedRank === rank ? 'bg-yellow-500 border-yellow-400 border-b-yellow-700 text-black border-r-yellow-700' : 'bg-slate-700 border-slate-600 border-b-slate-900 border-r-slate-900 text-slate-300'}`}>{rank}</button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center mb-2"><span className={`text-[10px] font-bold uppercase tracking-widest ${selectedRank ? 'text-white' : 'text-slate-700'}`}>2. Elige Palo</span></div>
+                                                    <div className="grid grid-cols-4 gap-2">
+                                                        {SUITS.map(suit => {
+                                                            const Icon = suit.icon;
+                                                            const isDisabled = !selectedRank || builtHand.length >= 5;
+                                                            return (
+                                                                <button key={suit.id} onClick={() => selectedRank && addCard(selectedRank, suit.id)} disabled={isDisabled} className={`btn-3d h-16 rounded ${isDisabled ? 'btn-disabled' : `bg-slate-200 border-slate-300 border-b-slate-400 border-r-slate-400 ${suit.color} fill-current`}`}><Icon className={`w-8 h-8 fill-current`} strokeWidth={2.5} /></button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-3 mb-4">
+                                                    <button onClick={handleDiscard} disabled={activePlayer?.discards <= 0} className={`flex-1 h-16 btn-3d btn-discard text-white text-[10px] rounded-lg flex flex-col items-center justify-center ${activePlayer?.discards <= 0 ? 'btn-disabled' : ''}`}><span className="flex items-center gap-1 uppercase tracking-wider"><Trash2 size={16} strokeWidth={2.5}/> Descartar</span></button>
+                                                    <button onClick={confirmHand} disabled={builtHand.length === 0} className={`flex-[2] h-16 btn-3d btn-play text-white text-xs rounded-lg flex flex-col items-center justify-center ${builtHand.length === 0 ? 'btn-disabled' : ''}`}><span className="flex items-center gap-2 uppercase tracking-wider text-sm"><Play size={20} fill="currentColor"/> Jugar Mano</span></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="bg-slate-950 border-t border-white/5 flex justify-around items-stretch h-16 shrink-0 z-30 pb-safe">
+                                <button onClick={() => setActiveTab('hands')} className={`flex-1 flex flex-col items-center justify-center gap-1 ${activeTab === 'hands' ? 'text-blue-400' : 'text-slate-600 hover:text-slate-400'}`}><Layers size={20} className={activeTab === 'hands' ? 'drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]' : ''} /><span className="text-[9px] font-bold uppercase tracking-wider">Manos</span></button>
+                                <button onClick={() => setActiveTab('table')} className={`flex-1 flex flex-col items-center justify-center gap-1 ${activeTab === 'table' ? 'text-blue-400' : 'text-slate-600 hover:text-slate-400'}`}><LayoutGrid size={24} className={activeTab === 'table' ? 'drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]' : ''} /><span className="text-[9px] font-bold uppercase tracking-wider">Mesa</span></button>
+                                <button onClick={() => setActiveTab('team')} className={`flex-1 flex flex-col items-center justify-center gap-1 ${activeTab === 'team' ? 'text-blue-400' : 'text-slate-600 hover:text-slate-400'}`}><Backpack size={20} className={activeTab === 'team' ? 'drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]' : ''} /><span className="text-[9px] font-bold uppercase tracking-wider">Equipo</span></button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- RENDERIZAR LA APP ---
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BalatroCalculator />);
+    </script>
+</body>
+</html>
